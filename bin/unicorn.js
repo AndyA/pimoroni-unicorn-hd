@@ -41,9 +41,7 @@ class UnicornHD extends EventEmitter {
 
   async showRaw(buf) {
     return new Promise((resolve, reject) => {
-      this.spi.transfer(buf, buf.length, (err, res) =>
-        err ? reject(err) : resolve(res)
-      );
+      this.spi.write(buf, (err, res) => (err ? reject(err) : resolve(res)));
     });
   }
 
