@@ -1,80 +1,6 @@
 "use strict";
 
-const EventEmitter = require("events");
-const SPI = require("pi-spi");
-const { createCanvas } = require("canvas");
-
-const DEV = "/dev/spidev0.0";
-const SOF = 0x72;
-const WIDTH = 16;
-const HEIGHT = 16;
-
-class UnicornHD extends EventEmitter {
-  constructor() {
-    super();
-    this.spi = SPI.initialize(DEV);
-    this.canvas = createCanvas(this.width, this.height);
-    this.dropped = 0;
-  }
-
-  get width() {
-    return WIDTH;
-  }
-
-  get height() {
-    return HEIGHT;
-  }
-
-  async showRaw(buf) {
-    return new Promise((resolve, reject) => {
-      this.spi.write(buf, (err, res) => (err ? reject(err) : resolve(res)));
-    });
-  }
-
-  async show() {
-    // async call doesn't seem to work...
-    const buf = this.canvas.toBuffer("raw");
-
-    const bl = buf.length;
-    const out = [SOF];
-
-    for (let off = 0; off < bl; off += 4) {
-      const w = buf.readInt32LE(off);
-      out.push((w >> 16) & 0xff, (w >> 8) & 0xff, (w >> 0) & 0xff);
-    }
-
-    await this.showRaw(Buffer.from(out));
-  }
-
-  start(rate) {
-    if (this._timer) this.stop();
-
-    let inShow = false;
-
-    this._timer = setInterval(() => {
-      if (inShow) {
-        this.dropped++;
-        this.emit("dropped");
-      } else {
-        inShow = true;
-        this.show()
-          .then(() => this.emit("frame"))
-          .catch(e => this.emit("error", e))
-          .finally(() => (inShow = false));
-      }
-    }, rate);
-
-    return this;
-  }
-
-  stop() {
-    if (this._timer) {
-      clearInterval(this._timer);
-      delete this._timer;
-    }
-    return this;
-  }
-}
+const { UnicornHD } = require("..");
 
 function update(u, pt) {
   const nx = pt.x + pt.dx;
@@ -120,9 +46,13 @@ function update(u, pt) {
       ctx.stroke();
       ctx.restore();
     };
-    u.on("frame", redraw).on("error", e => {
-      throw e;
-    });
+
+    u.on("frame", redraw)
+      .on("dropped", () => console.log("Dropped frame!"))
+      .on("error", e => {
+        throw e;
+      });
+
     redraw();
     u.start(1000 / 25);
   } catch (e) {
