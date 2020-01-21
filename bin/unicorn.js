@@ -9,20 +9,6 @@ const SOF = 0x72;
 const WIDTH = 16;
 const HEIGHT = 16;
 
-if (0) {
-  const spi = SPI.initialize("/dev/spidev0.0");
-  const pat = [SOF];
-
-  for (let i = 0; i < 16 * 16 * 3; i++)
-    pat.push(Math.floor(Math.random() * 255));
-
-  const buf = Buffer.from(pat);
-  spi.transfer(buf, buf.length, (err, res) => {
-    if (err) throw err;
-    console.log(res);
-  });
-}
-
 class UnicornHD extends EventEmitter {
   constructor() {
     super();
@@ -46,6 +32,7 @@ class UnicornHD extends EventEmitter {
   }
 
   async show() {
+    // async call doesn't seem to work...
     const buf = this.canvas.toBuffer("raw");
 
     const bl = buf.length;
@@ -61,19 +48,22 @@ class UnicornHD extends EventEmitter {
 
   start(rate) {
     if (this._timer) this.stop();
-    let showing = false;
+
+    let inShow = false;
+
     this._timer = setInterval(() => {
-      if (showing) {
+      if (inShow) {
         this.dropped++;
         this.emit("dropped");
       } else {
-        showing = true;
-        this.show().finally(() => {
-          showing = false;
-          this.emit("frame");
-        });
+        inShow = true;
+        this.show()
+          .then(() => this.emit("frame"))
+          .catch(e => this.emit("error", e))
+          .finally(() => (inShow = false));
       }
     }, rate);
+
     return this;
   }
 
@@ -104,8 +94,8 @@ function update(u, pt) {
       p.push({
         x: Math.random() * u.width,
         y: Math.random() * u.height,
-        dx: Math.random() * 2 - 1,
-        dy: Math.random() * 2 - 1
+        dx: (Math.random() * 2 - 1) * 0.1,
+        dy: (Math.random() * 2 - 1) * 0.1
       });
 
     const redraw = () => {
@@ -118,8 +108,6 @@ function update(u, pt) {
 
       ctx.clearRect(0, 0, cvs.width, cvs.height);
       //      ctx.antialias = "none";
-      //      ctx.fillStyle = "red";
-      //      ctx.fillRect(0, 0, cvs.width, cvs.height);
 
       ctx.strokeStyle = "green";
 
@@ -132,9 +120,10 @@ function update(u, pt) {
       ctx.stroke();
       ctx.restore();
     };
-    u.on("frame", redraw);
+    u.on("frame", redraw).on("error", e => {
+      throw e;
+    });
     redraw();
-    //    u.start(100);
     u.start(1000 / 25);
   } catch (e) {
     console.log(e);
