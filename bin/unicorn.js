@@ -34,6 +34,7 @@ class PolyWobble {
     ctx.save();
 
     ctx.lineJoin = "round";
+    ctx.lineWidth = 0.5;
     ctx.strokeStyle = this.opt.colour;
 
     ctx.beginPath();
@@ -75,6 +76,7 @@ function makeCanvas() {
 
 function makeUnicorn() {
   const u = new UnicornHD();
+  u.rotation = 3;
 
   const perimeter = x => {
     if (x < u.width) return [x, 0];
@@ -86,7 +88,8 @@ function makeUnicorn() {
     if (x < u.height - 2) return [0, u.height - 2 - x];
   };
 
-  let phase = 0;
+  let phase = 0,
+    cc = 32;
 
   const nextPos = () => {
     const p = perimeter(phase++);
@@ -95,13 +98,24 @@ function makeUnicorn() {
     return perimeter(phase);
   };
 
+  const message = "BBC Micro 32k BASIC >";
+  const bbox = u.measureText(message);
+  let textPos = u.rotatedWidth;
+  const minTextPos = -bbox.width;
+
   const redraw = () => {
     u.clear();
+
+    u.drawText(textPos--, 4, message, [0, 60, 90]);
+    if (textPos <= minTextPos) textPos = u.rotatedWidth;
+
     const [x0, y0] = nextPos();
-    const [x1, y1] = [u.width - x0, u.height - y0];
-    u.line(x0, y0, x1, y1, [255, 0, 0]);
+    const [x1, y1] = [u.width - 1 - x0, u.height - 1 - y0];
+    u.drawDot(x0, y0, [255, 0, 0]);
+    u.drawDot(x1, y1, [0, 255, 0]);
   };
-  return { u, redraw, rate: 250 };
+
+  return { u, redraw, rate: 1000 / 25 };
 }
 
 (async () => {
