@@ -99,12 +99,7 @@ function makeUnicorn() {
     u.clear();
     const [x0, y0] = nextPos();
     const [x1, y1] = [u.width - x0, u.height - y0];
-    //    u.set(x, y, [255, 0, 0]);
     u.line(x0, y0, x1, y1, [255, 0, 0]);
-    //    u.line(0, 0, 15, 15, [255, 255, 0]);
-    //    u.set(0, 0, [255, 0, 0]);
-    //    u.set(1, 0, [0, 255, 0]);
-    //    u.set(2, 0, [0, 0, 255]);
   };
   return { u, redraw, rate: 250 };
 }
